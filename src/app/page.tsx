@@ -151,19 +151,22 @@ export default function TaskWisePage() {
     <TooltipProvider>
       <div className="min-h-screen bg-background text-foreground font-body">
         <main className="container mx-auto max-w-4xl p-4 md:p-8">
-          <header className="flex items-center justify-between mb-8">
-            <div className="flex items-center gap-3">
-              <Logo className="h-10 w-10 text-primary" />
-              <h1 className="text-3xl font-bold tracking-tighter text-foreground">
-                TaskWise AI
-              </h1>
+          <header className="flex items-center justify-between mb-12">
+            <div className="flex items-center gap-4">
+              <Logo className="h-12 w-12 text-primary" />
+              <div>
+                <h1 className="text-4xl font-black tracking-tighter text-foreground">
+                  TaskWise AI
+                </h1>
+                <p className="text-muted-foreground">Your intelligent to-do list</p>
+              </div>
             </div>
             <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" onClick={() => setDialogState({ suggestTasks: true })} disabled={isSuggestingTasks}>
+              <Button variant="ghost" onClick={() => setDialogState({ suggestTasks: true })} disabled={isSuggestingTasks}>
                 {isSuggestingTasks ? <LoaderCircle className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
                 Suggest Tasks
               </Button>
-              <Button variant="outline" size="sm" onClick={handlePrioritize} disabled={isPrioritizing}>
+              <Button variant="ghost" onClick={handlePrioritize} disabled={isPrioritizing}>
                 {isPrioritizing ? <LoaderCircle className="mr-2 h-4 w-4 animate-spin" /> : <ListOrdered className="mr-2 h-4 w-4" />}
                 Prioritize
               </Button>
@@ -171,32 +174,33 @@ export default function TaskWisePage() {
           </header>
 
           <section className="mb-8">
-            <form onSubmit={handleAddTask} className="flex gap-2">
+            <form onSubmit={handleAddTask} className="relative">
               <Input
                 type="text"
-                placeholder="Add a new task..."
+                placeholder="What needs to be done?"
                 value={newTaskTitle}
                 onChange={e => setNewTaskTitle(e.target.value)}
-                className="flex-grow"
+                className="w-full pl-4 pr-20 py-6 text-lg border-2 border-primary/20 focus:border-primary focus:glow-shadow"
               />
-              <Button type="submit" size="icon">
-                <Plus className="h-4 w-4" />
+              <Button type="submit" size="lg" className="absolute right-2 top-1/2 -translate-y-1/2">
+                <Plus className="h-5 w-5 mr-2" /> Add Task
               </Button>
             </form>
           </section>
 
           <section>
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-semibold">Your Tasks</h2>
-              <span className="text-sm text-muted-foreground">
-                {completedCount} of {totalCount} completed
+              <h2 className="text-2xl font-bold tracking-tight">Your Tasks</h2>
+              <span className="text-sm font-medium bg-secondary text-secondary-foreground px-3 py-1 rounded-full">
+                {completedCount} / {totalCount} done
               </span>
             </div>
-            <div className="space-y-4">
-              {tasks.map(task => (
+            <div className="space-y-3">
+              {tasks.map((task, index) => (
                 <TaskItem
                   key={task.id}
                   task={task}
+                  index={index}
                   onToggleComplete={toggleTaskCompletion}
                   onToggleSubtaskComplete={toggleSubtaskCompletion}
                   onDelete={deleteTask}
@@ -206,10 +210,10 @@ export default function TaskWisePage() {
                 />
               ))}
               {tasks.length === 0 && (
-                 <div className="text-center py-12 border-2 border-dashed rounded-lg">
-                    <CheckCircle className="mx-auto h-12 w-12 text-muted-foreground" />
-                    <h3 className="mt-2 text-sm font-medium text-muted-foreground">All tasks completed!</h3>
-                    <p className="mt-1 text-sm text-muted-foreground">Add a new task or get AI suggestions.</p>
+                 <div className="text-center py-16 border-2 border-dashed border-border/50 rounded-lg bg-card/50">
+                    <CheckCircle className="mx-auto h-12 w-12 text-primary" />
+                    <h3 className="mt-4 text-xl font-semibold text-foreground">You're all caught up!</h3>
+                    <p className="mt-2 text-base text-muted-foreground">Looks like there's nothing on your plate. Enjoy the peace.</p>
                 </div>
               )}
             </div>
@@ -258,6 +262,7 @@ export default function TaskWisePage() {
 
 type TaskItemProps = {
   task: Task;
+  index: number;
   onToggleComplete: (id: string) => void;
   onToggleSubtaskComplete: (taskId: string, subtaskId: string) => void;
   onDelete: (id: string) => void;
@@ -266,40 +271,43 @@ type TaskItemProps = {
   onSuggestSchedule: (task: Task) => void;
 };
 
-const TaskItem = ({ task, onToggleComplete, onToggleSubtaskComplete, onDelete, onEdit, onBreakdown, onSuggestSchedule }: TaskItemProps) => {
+const TaskItem = ({ task, index, onToggleComplete, onToggleSubtaskComplete, onDelete, onEdit, onBreakdown, onSuggestSchedule }: TaskItemProps) => {
     const priorityClasses = {
-        High: "border-red-500/50 hover:border-red-500/80",
-        Medium: "border-yellow-500/50 hover:border-yellow-500/80",
-        Low: "border-blue-500/50 hover:border-blue-500/80",
+        High: "border-l-4 border-red-400",
+        Medium: "border-l-4 border-yellow-400",
+        Low: "border-l-4 border-sky-400",
     };
     
     return (
-        <Card className={cn(
-            "transition-all duration-300",
-            task.completed ? "bg-card/50" : "bg-card",
-            priorityClasses[task.priority]
-        )}>
+        <Card 
+            className={cn(
+                "transition-all duration-300 transform hover:scale-[1.02] hover:shadow-lg bg-card/80 backdrop-blur-sm",
+                task.completed ? "opacity-60 bg-card/50" : "bg-card",
+                priorityClasses[task.priority]
+            )}
+            style={{ animation: `fadeInUp 0.5s ${index * 0.05}s ease-out both` }}
+        >
             <CardContent className="p-4 flex flex-col gap-4">
                 <div className="flex items-start gap-4">
                     <Checkbox
                         id={`task-${task.id}`}
                         checked={task.completed}
                         onCheckedChange={() => onToggleComplete(task.id)}
-                        className="mt-1"
+                        className="mt-1 h-5 w-5 rounded-full"
                     />
                     <div className="flex-grow">
                         <label
                             htmlFor={`task-${task.id}`}
                             className={cn(
-                                "font-medium text-base transition-colors",
+                                "font-semibold text-lg transition-colors cursor-pointer",
                                 task.completed ? "line-through text-muted-foreground" : "text-foreground"
                             )}
                         >
                             {task.title}
                         </label>
-                        <div className="flex items-center gap-2 mt-1 flex-wrap">
+                        <div className="flex items-center gap-2 mt-2 flex-wrap">
                             <Badge variant={task.priority === 'High' ? 'destructive' : task.priority === 'Medium' ? 'secondary' : 'outline'}>{task.priority}</Badge>
-                            {task.deadline && <Badge variant="outline"><CalendarIcon className="mr-1 h-3 w-3" />{format(parseISO(task.deadline), "MMM d")}</Badge>}
+                            {task.deadline && <Badge variant="outline" className="font-mono"><CalendarIcon className="mr-1 h-3 w-3" />{format(parseISO(task.deadline), "MMM d")}</Badge>}
                             {task.priorityScore && (
                                 <Tooltip>
                                     <TooltipTrigger asChild>
@@ -325,7 +333,7 @@ const TaskItem = ({ task, onToggleComplete, onToggleSubtaskComplete, onDelete, o
                     </div>
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0">
+                            <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0 rounded-full">
                                 <MoreHorizontal className="h-4 w-4" />
                             </Button>
                         </DropdownMenuTrigger>
@@ -335,14 +343,14 @@ const TaskItem = ({ task, onToggleComplete, onToggleSubtaskComplete, onDelete, o
                             <DropdownMenuItem onClick={() => onBreakdown(task)}><Split className="mr-2 h-4 w-4" />Breakdown Task</DropdownMenuItem>
                             <DropdownMenuItem onClick={() => onSuggestSchedule(task)}><CalendarClock className="mr-2 h-4 w-4" />Suggest Schedule</DropdownMenuItem>
                             <DropdownMenuSeparator />
-                            <DropdownMenuItem onClick={() => onDelete(task.id)} className="text-red-500"><Trash2 className="mr-2 h-4 w-4" />Delete</DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => onDelete(task.id)} className="text-red-400 focus:text-red-400 focus:bg-red-400/10"><Trash2 className="mr-2 h-4 w-4" />Delete</DropdownMenuItem>
                         </DropdownMenuContent>
                     </DropdownMenu>
                 </div>
                 {task.subtasks.length > 0 && (
-                    <div className="pl-10 space-y-2">
+                    <div className="pl-11 space-y-3 pt-2 border-t border-border/50">
                         {task.subtasks.map(subtask => (
-                            <div key={subtask.id} className="flex items-center gap-2">
+                            <div key={subtask.id} className="flex items-center gap-3">
                                 <Checkbox
                                     id={`subtask-${subtask.id}`}
                                     checked={subtask.completed}
