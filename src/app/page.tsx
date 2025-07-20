@@ -1,3 +1,4 @@
+
 "use client";
 
 import * as React from "react";
@@ -169,8 +170,8 @@ export default function TaskWisePage() {
     <TooltipProvider>
       <div className="min-h-screen bg-background text-foreground font-body">
         <main className="container mx-auto max-w-4xl p-4 md:p-8">
-          <header className="flex flex-col md:flex-row items-center justify-between mb-8 md:mb-12">
-            <div className="flex items-center gap-3 md:gap-4 mb-4 md:mb-0">
+          <header className="flex flex-col sm:flex-row items-center justify-between mb-8 md:mb-12">
+            <div className="flex items-center gap-3 md:gap-4 mb-4 sm:mb-0">
               <Logo className="h-10 w-10 md:h-12 md:w-12 text-primary" />
               <div>
                 <h1 className="text-3xl md:text-4xl font-black tracking-tighter text-foreground">
@@ -182,42 +183,42 @@ export default function TaskWisePage() {
             <div className="flex items-center gap-2">
                <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button variant="ghost" size="icon" className="md:hidden" onClick={() => setDialogState({ planDay: true })}>
+                  <Button variant="ghost" size="icon" className="sm:hidden" onClick={() => setDialogState({ planDay: true })}>
                     <ClipboardList className="h-4 w-4" />
                     <span className="sr-only">Plan My Day</span>
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>Plan My Day</TooltipContent>
               </Tooltip>
-              <Button variant="ghost" className="hidden md:inline-flex" onClick={() => setDialogState({ planDay: true })}>
+              <Button variant="ghost" className="hidden sm:inline-flex" onClick={() => setDialogState({ planDay: true })}>
                 <ClipboardList className="mr-2 h-4 w-4" />
                 Plan My Day
               </Button>
 
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button variant="ghost" size="icon" className="md:hidden" onClick={() => setDialogState({ suggestTasks: true })} disabled={isSuggestingTasks}>
+                  <Button variant="ghost" size="icon" className="sm:hidden" onClick={() => setDialogState({ suggestTasks: true })} disabled={isSuggestingTasks}>
                     {isSuggestingTasks ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
                     <span className="sr-only">Suggest Tasks</span>
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>Suggest Tasks</TooltipContent>
               </Tooltip>
-              <Button variant="ghost" className="hidden md:inline-flex" onClick={() => setDialogState({ suggestTasks: true })} disabled={isSuggestingTasks}>
+              <Button variant="ghost" className="hidden sm:inline-flex" onClick={() => setDialogState({ suggestTasks: true })} disabled={isSuggestingTasks}>
                 {isSuggestingTasks ? <LoaderCircle className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
                 Suggest Tasks
               </Button>
 
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button variant="ghost" size="icon" className="md:hidden" onClick={handlePrioritize} disabled={isPrioritizing}>
+                  <Button variant="ghost" size="icon" className="sm:hidden" onClick={handlePrioritize} disabled={isPrioritizing}>
                     {isPrioritizing ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <ListOrdered className="h-4 w-4" />}
                     <span className="sr-only">Prioritize</span>
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>Prioritize</TooltipContent>
               </Tooltip>
-              <Button variant="ghost" className="hidden md:inline-flex" onClick={handlePrioritize} disabled={isPrioritizing}>
+              <Button variant="ghost" className="hidden sm:inline-flex" onClick={handlePrioritize} disabled={isPrioritizing}>
                 {isPrioritizing ? <LoaderCircle className="mr-2 h-4 w-4 animate-spin" /> : <ListOrdered className="mr-2 h-4 w-4" />}
                 Prioritize
               </Button>
@@ -231,17 +232,17 @@ export default function TaskWisePage() {
                 placeholder="What needs to be done?"
                 value={newTaskTitle}
                 onChange={e => setNewTaskTitle(e.target.value)}
-                className="w-full pl-4 pr-28 md:pr-32 py-6 text-base md:text-lg border-2 border-primary/20 focus:border-primary focus:glow-shadow"
+                className="w-full pl-4 pr-28 sm:pr-32 py-6 text-base md:text-lg border-2 border-primary/20 focus:border-primary focus:glow-shadow"
               />
-              <Button type="submit" size="lg" className="absolute right-2 top-1/2 -translate-y-1/2 text-sm md:text-base px-3 md:px-4">
-                <Plus className="h-5 w-5 md:mr-2" /> <span className="hidden md:inline">Add Task</span>
+              <Button type="submit" size="lg" className="absolute right-2 top-1/2 -translate-y-1/2 text-sm px-3 sm:px-4">
+                <Plus className="h-5 w-5 sm:mr-2" /> <span className="hidden sm:inline">Add Task</span>
               </Button>
             </form>
           </section>
 
           <section>
             <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as TaskCategory)}>
-                <div className="flex items-center justify-between mb-4">
+                <div className="flex flex-col sm:flex-row items-center justify-between mb-4 gap-4">
                     <TabsList>
                         <TabsTrigger value="Today">Today</TabsTrigger>
                         <TabsTrigger value="This Week">This Week</TabsTrigger>
@@ -967,5 +968,3 @@ const EditTaskDialog = ({ task, onOpenChange, onUpdateTask }: { task: Task | nul
         </Dialog>
     );
 };
-
-    
