@@ -1,4 +1,5 @@
 export type Priority = "Low" | "Medium" | "High";
+export type TaskCategory = "Today" | "This Week" | "Long Term";
 
 export interface Subtask {
   id: string;
@@ -11,6 +12,7 @@ export interface Task {
   title: string;
   completed: boolean;
   priority: Priority;
+  category: TaskCategory;
   deadline?: string;
   subtasks: Subtask[];
   userCriteria?: string;

@@ -16,6 +16,7 @@ import {
   LoaderCircle,
   Info,
   ClipboardList,
+  MessageSquareQuote,
 } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { z } from "zod";
@@ -23,7 +24,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 
 import { cn } from "@/lib/utils";
-import type { Task, Subtask, Priority } from "@/lib/types";
+import type { Task, Subtask, Priority, TaskCategory } from "@/lib/types";
 import { suggestTasks } from "@/ai/flows/suggest-tasks";
 import { breakDownTask } from "@/ai/flows/break-down-task";
 import { suggestSchedule } from "@/ai/flows/suggest-schedule";
@@ -44,20 +45,24 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import Logo from "@/components/logo";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
 
 const initialTasks: Task[] = [
-  { id: 'task-1', title: 'Plan company offsite event', completed: false, priority: 'High', deadline: '2024-08-15', subtasks: [], userCriteria: 'Must be budget-friendly' },
+  { id: 'task-1', title: 'Plan company offsite event', completed: false, priority: 'High', deadline: '2024-08-15', subtasks: [], userCriteria: 'Must be budget-friendly', category: 'This Week' },
   { id: 'task-2', title: 'Develop Q3 marketing strategy', completed: false, priority: 'High', deadline: '2024-07-30', subtasks: [
     { id: 'sub-1', title: 'Research competitors', completed: true },
     { id: 'sub-2', title: 'Define target audience', completed: false },
-  ]},
-  { id: 'task-3', title: 'Update the landing page design', completed: true, priority: 'Medium', deadline: '2024-07-22', subtasks: [] },
-  { id: 'task-4', title: 'Organize team-building lunch', completed: false, priority: 'Low', deadline: '2024-07-25', subtasks: [] },
+  ], category: 'This Week'},
+  { id: 'task-3', title: 'Finalize Q2 performance reviews', completed: false, priority: 'Medium', deadline: '2024-07-22', subtasks: [], category: 'Today' },
+  { id: 'task-4', title: 'Book flight for leadership summit', completed: true, priority: 'High', deadline: '2024-07-25', subtasks: [], category: 'Today' },
+  { id: 'task-5', title: 'Outline 2025 product roadmap', completed: false, priority: 'Low', deadline: '2024-09-30', subtasks: [], category: 'Long Term' },
 ];
 
 export default function TaskWisePage() {
   const [tasks, setTasks] = React.useState<Task[]>(initialTasks);
   const [newTaskTitle, setNewTaskTitle] = React.useState("");
+  const [activeTab, setActiveTab] = React.useState<TaskCategory>("Today");
   const [isSuggestingTasks, setIsSuggestingTasks] = React.useState(false);
   const [isPrioritizing, setIsPrioritizing] = React.useState(false);
   const [dialogState, setDialogState] = React.useState<{
@@ -79,6 +84,7 @@ export default function TaskWisePage() {
         completed: false,
         priority: "Medium",
         subtasks: [],
+        category: activeTab,
       };
       setTasks([newTask, ...tasks]);
       setNewTaskTitle("");
@@ -118,7 +124,13 @@ export default function TaskWisePage() {
   const handlePrioritize = async () => {
     setIsPrioritizing(true);
     try {
-      const apiTasks = tasks.map(({ id, title, deadline, priority, userCriteria }) => ({
+      const tasksToPrioritize = tasks.filter(t => t.category === activeTab);
+      if (tasksToPrioritize.length === 0) {
+        toast({ title: "No tasks to prioritize", description: `There are no tasks in the "${activeTab}" view.` });
+        return;
+      }
+
+      const apiTasks = tasksToPrioritize.map(({ id, title, deadline, priority, userCriteria }) => ({
         id,
         description: title,
         deadline: deadline || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
@@ -136,9 +148,11 @@ export default function TaskWisePage() {
           return originalTask ? { ...originalTask, priorityScore: pTask.priorityScore, reasoning: pTask.reasoning } : null;
         })
         .filter((t): t is Task => t !== null);
+      
+      const otherTasks = tasks.filter(t => !sortedTasks.some(st => st.id === t.id));
+      setTasks([...sortedTasks, ...otherTasks]);
 
-      setTasks(sortedTasks);
-      toast({ title: "Tasks Prioritized", description: "Your tasks have been intelligently re-ordered." });
+      toast({ title: "Tasks Prioritized", description: `Tasks in "${activeTab}" view have been re-ordered.` });
     } catch (error) {
       console.error(error);
       toast({ variant: "destructive", title: "Error", description: "Failed to prioritize tasks." });
@@ -147,8 +161,9 @@ export default function TaskWisePage() {
     }
   };
 
-  const completedCount = tasks.filter(t => t.completed).length;
-  const totalCount = tasks.length;
+  const filteredTasks = tasks.filter(task => task.category === activeTab);
+  const completedCount = filteredTasks.filter(t => t.completed).length;
+  const totalCount = filteredTasks.length;
 
   return (
     <TooltipProvider>
@@ -196,34 +211,27 @@ export default function TaskWisePage() {
           </section>
 
           <section>
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-2xl font-bold tracking-tight">Your Tasks</h2>
-              <span className="text-sm font-medium bg-secondary text-secondary-foreground px-3 py-1 rounded-full">
-                {completedCount} / {totalCount} done
-              </span>
-            </div>
-            <div className="space-y-3">
-              {tasks.map((task, index) => (
-                <TaskItem
-                  key={task.id}
-                  task={task}
-                  index={index}
-                  onToggleComplete={toggleTaskCompletion}
-                  onToggleSubtaskComplete={toggleSubtaskCompletion}
-                  onDelete={deleteTask}
-                  onEdit={(editedTask) => setDialogState({ editTask: editedTask })}
-                  onBreakdown={(taskToBreakdown) => setDialogState({ breakdownTask: taskToBreakdown })}
-                  onSuggestSchedule={(taskToSchedule) => setDialogState({ suggestSchedule: taskToSchedule })}
-                />
-              ))}
-              {tasks.length === 0 && (
-                 <div className="text-center py-16 border-2 border-dashed border-border/50 rounded-lg bg-card/50">
-                    <CheckCircle className="mx-auto h-12 w-12 text-primary" />
-                    <h3 className="mt-4 text-xl font-semibold text-foreground">You're all caught up!</h3>
-                    <p className="mt-2 text-base text-muted-foreground">Looks like there's nothing on your plate. Enjoy the peace.</p>
+            <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as TaskCategory)}>
+                <div className="flex items-center justify-between mb-4">
+                    <TabsList>
+                        <TabsTrigger value="Today">Today</TabsTrigger>
+                        <TabsTrigger value="This Week">This Week</TabsTrigger>
+                        <TabsTrigger value="Long Term">Long Term</TabsTrigger>
+                    </TabsList>
+                    <span className="text-sm font-medium bg-secondary text-secondary-foreground px-3 py-1 rounded-full">
+                        {completedCount} / {totalCount} done
+                    </span>
                 </div>
-              )}
-            </div>
+                <TabsContent value="Today">
+                    <TaskList tasks={filteredTasks} />
+                </TabsContent>
+                <TabsContent value="This Week">
+                    <TaskList tasks={filteredTasks} />
+                </TabsContent>
+                <TabsContent value="Long Term">
+                    <TaskList tasks={filteredTasks} />
+                </TabsContent>
+            </Tabs>
           </section>
         </main>
 
@@ -245,6 +253,7 @@ export default function TaskWisePage() {
               completed: false,
               priority: 'Medium' as Priority,
               subtasks: [],
+              category: 'Today' as TaskCategory,
             }));
             setTasks(prev => [...tasksToAdd, ...prev]);
           }}
@@ -271,6 +280,33 @@ export default function TaskWisePage() {
       </div>
     </TooltipProvider>
   );
+  
+  function TaskList({ tasks }: { tasks: Task[] }) {
+    return (
+      <div className="space-y-3">
+        {tasks.map((task, index) => (
+          <TaskItem
+            key={task.id}
+            task={task}
+            index={index}
+            onToggleComplete={toggleTaskCompletion}
+            onToggleSubtaskComplete={toggleSubtaskCompletion}
+            onDelete={deleteTask}
+            onEdit={(editedTask) => setDialogState({ editTask: editedTask })}
+            onBreakdown={(taskToBreakdown) => setDialogState({ breakdownTask: taskToBreakdown })}
+            onSuggestSchedule={(taskToSchedule) => setDialogState({ suggestSchedule: taskToSchedule })}
+          />
+        ))}
+        {tasks.length === 0 && (
+           <div className="text-center py-16 border-2 border-dashed border-border/50 rounded-lg bg-card/50">
+              <CheckCircle className="mx-auto h-12 w-12 text-primary" />
+              <h3 className="mt-4 text-xl font-semibold text-foreground">You're all caught up!</h3>
+              <p className="mt-2 text-base text-muted-foreground">Looks like there's nothing on your plate for {activeTab}.</p>
+          </div>
+        )}
+      </div>
+    );
+  }
 }
 
 // Sub-components for better organization
@@ -355,7 +391,7 @@ const TaskItem = ({ task, index, onToggleComplete, onToggleSubtaskComplete, onDe
                         <DropdownMenuContent align="end">
                             <DropdownMenuItem onClick={() => onEdit(task)}><Pencil className="mr-2 h-4 w-4" />Edit</DropdownMenuItem>
                             <DropdownMenuSeparator />
-                            <DropdownMenuItem onClick={() => onBreakdown(task)}><Split className="mr-2 h-4 w-4" />Breakdown Task</DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => onBreakdown(task)}><Split className="mr-2 h-4 w-4" />AI Breakdown</DropdownMenuItem>
                             <DropdownMenuItem onClick={() => onSuggestSchedule(task)}><CalendarClock className="mr-2 h-4 w-4" />Suggest Schedule</DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem onClick={() => onDelete(task.id)} className="text-red-400 focus:text-red-400 focus:bg-red-400/10"><Trash2 className="mr-2 h-4 w-4" />Delete</DropdownMenuItem>
@@ -421,6 +457,7 @@ const PlanDayDialog = ({ open, onOpenChange, onScheduleGenerated }: { open: bool
                 completed: false,
                 priority: item.priority,
                 subtasks: [],
+                category: 'Today',
             }));
             onScheduleGenerated(newTasks);
             toast({ title: "Day Planned!", description: "Your schedule has been added to your tasks." });
@@ -575,21 +612,58 @@ const SuggestTasksDialog = ({ open, onOpenChange, onAddTasks, setLoading }: { op
   );
 };
 
+const breakdownResponseSchema = z.object({
+  response: z.string().min(5, "Please provide a more detailed response."),
+});
 
 const BreakdownTaskDialog = ({ task, onOpenChange, onUpdateTask }: { task: Task | null, onOpenChange: () => void, onUpdateTask: (task: Task) => void }) => {
+    const [questions, setQuestions] = React.useState<string[]>([]);
     const [subtasks, setSubtasks] = React.useState<string[]>([]);
     const [isLoading, setIsLoading] = React.useState(false);
     const { toast } = useToast();
 
+    const form = useForm<z.infer<typeof breakdownResponseSchema>>({
+        resolver: zodResolver(breakdownResponseSchema),
+        defaultValues: { response: "" },
+    });
+
     React.useEffect(() => {
         if (task) {
             setIsLoading(true);
+            setQuestions([]);
+            setSubtasks([]);
+            form.reset();
             breakDownTask({ task: task.title })
-                .then(result => setSubtasks(result.subtasks))
-                .catch(() => toast({ variant: 'destructive', title: 'AI Error', description: 'Could not break down the task.' }))
+                .then(result => {
+                    if (result.questions) {
+                        setQuestions(result.questions);
+                    } else if (result.subtasks) {
+                        setSubtasks(result.subtasks);
+                    }
+                })
+                .catch(() => toast({ variant: 'destructive', title: 'AI Error', description: 'Could not start task breakdown.' }))
                 .finally(() => setIsLoading(false));
         }
-    }, [task, toast]);
+    }, [task, toast, form]);
+
+    const handleResponseSubmit = async (values: z.infer<typeof breakdownResponseSchema>) => {
+        if (!task) return;
+        setIsLoading(true);
+        try {
+            const result = await breakDownTask({ task: task.title, userResponse: values.response });
+            if (result.questions) {
+                setQuestions(result.questions);
+                form.reset();
+            } else if (result.subtasks) {
+                setQuestions([]);
+                setSubtasks(result.subtasks);
+            }
+        } catch (error) {
+            toast({ variant: 'destructive', title: 'AI Error', description: 'Could not process your response.' });
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
     const handleAddSubtasks = () => {
         if (!task) return;
@@ -602,16 +676,58 @@ const BreakdownTaskDialog = ({ task, onOpenChange, onUpdateTask }: { task: Task 
         onOpenChange();
     };
 
+    const hasGeneratedResult = subtasks.length > 0;
+    
     return (
         <Dialog open={!!task} onOpenChange={onOpenChange}>
             <DialogContent>
                 <DialogHeader>
-                    <DialogTitle>Breakdown: {task?.title}</DialogTitle>
-                    <DialogDescription>Here are the smaller steps to complete this task.</DialogDescription>
+                    <DialogTitle>AI Breakdown: {task?.title}</DialogTitle>
+                    <DialogDescription>
+                        {hasGeneratedResult 
+                            ? "Here are the smaller steps to complete this task." 
+                            : "Answer a few questions to break down this task."
+                        }
+                    </DialogDescription>
                 </DialogHeader>
-                {isLoading ? (
+                
+                {isLoading && !hasGeneratedResult && (
                     <div className="flex items-center justify-center p-8"><LoaderCircle className="h-8 w-8 animate-spin text-primary" /></div>
-                ) : (
+                )}
+
+                {!isLoading && questions.length > 0 && (
+                    <div className="space-y-4">
+                        <div className="space-y-2 rounded-md bg-muted/50 p-4">
+                            {questions.map((q, i) => (
+                                <div key={i} className="flex items-start gap-3">
+                                    <MessageSquareQuote className="h-4 w-4 mt-1 flex-shrink-0 text-primary" />
+                                    <p className="font-medium">{q}</p>
+                                </div>
+                            ))}
+                        </div>
+                        <Form {...form}>
+                            <form onSubmit={form.handleSubmit(handleResponseSubmit)} className="space-y-4">
+                                <FormField control={form.control} name="response" render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Your Response</FormLabel>
+                                        <FormControl>
+                                            <Textarea placeholder="Provide details here..." {...field} />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )} />
+                                <DialogFooter>
+                                    <Button type="submit" disabled={isLoading}>
+                                        {isLoading ? <LoaderCircle className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
+                                        Generate Subtasks
+                                    </Button>
+                                </DialogFooter>
+                            </form>
+                        </Form>
+                    </div>
+                )}
+                
+                {hasGeneratedResult && (
                     <>
                         <div className="space-y-2 max-h-64 overflow-y-auto">
                             {subtasks.map((sub, i) => (
@@ -622,7 +738,9 @@ const BreakdownTaskDialog = ({ task, onOpenChange, onUpdateTask }: { task: Task 
                             ))}
                         </div>
                         <DialogFooter>
-                            <Button onClick={handleAddSubtasks}><Plus className="mr-2 h-4 w-4" />Add as Subtasks</Button>
+                            <Button onClick={handleAddSubtasks} disabled={isLoading}>
+                                {isLoading ? <LoaderCircle className="mr-2 h-4 w-4 animate-spin" /> : <><Plus className="mr-2 h-4 w-4" /> Add as Subtasks</>}
+                            </Button>
                         </DialogFooter>
                     </>
                 )}
@@ -630,6 +748,7 @@ const BreakdownTaskDialog = ({ task, onOpenChange, onUpdateTask }: { task: Task 
         </Dialog>
     );
 };
+
 
 const scheduleSchema = z.object({
   deadline: z.date(),
@@ -746,6 +865,7 @@ const editTaskSchema = z.object({
   title: z.string().min(1, "Title is required."),
   priority: z.enum(["Low", "Medium", "High"]),
   deadline: z.date().optional(),
+  category: z.enum(["Today", "This Week", "Long Term"]),
   userCriteria: z.string().optional(),
 });
 
@@ -760,6 +880,7 @@ const EditTaskDialog = ({ task, onOpenChange, onUpdateTask }: { task: Task | nul
                 title: task.title,
                 priority: task.priority,
                 deadline: task.deadline ? parseISO(task.deadline) : undefined,
+                category: task.category,
                 userCriteria: task.userCriteria || '',
             });
         }
@@ -772,6 +893,7 @@ const EditTaskDialog = ({ task, onOpenChange, onUpdateTask }: { task: Task | nul
             title: values.title,
             priority: values.priority,
             deadline: values.deadline ? values.deadline.toISOString().split('T')[0] : undefined,
+            category: values.category,
             userCriteria: values.userCriteria,
         });
         onOpenChange();
@@ -788,9 +910,16 @@ const EditTaskDialog = ({ task, onOpenChange, onUpdateTask }: { task: Task | nul
                         <FormField control={form.control} name="title" render={({ field }) => (
                             <FormItem><FormLabel>Title</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                         )} />
-                        <FormField control={form.control} name="priority" render={({ field }) => (
-                           <FormItem><FormLabel>Priority</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl><SelectContent><SelectItem value="Low">Low</SelectItem><SelectItem value="Medium">Medium</SelectItem><SelectItem value="High">High</SelectItem></SelectContent></Select><FormMessage /></FormItem>
-                        )} />
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <FormField control={form.control} name="priority" render={({ field }) => (
+                               <FormItem><FormLabel>Priority</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl><SelectContent><SelectItem value="Low">Low</SelectItem><SelectItem value="Medium">Medium</SelectItem><SelectItem value="High">High</SelectItem></SelectContent></Select><FormMessage /></FormItem>
+                            )} />
+                             <FormField control={form.control} name="category" render={({ field }) => (
+                               <FormItem><FormLabel>Category</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl><SelectContent><SelectItem value="Today">Today</SelectItem><SelectItem value="This Week">This Week</SelectItem><SelectItem value="Long Term">Long Term</SelectItem></SelectContent></Select><FormMessage /></FormItem>
+                            )} />
+                        </div>
+                        
                         <FormField control={form.control} name="deadline" render={({ field }) => (
                            <FormItem className="flex flex-col"><FormLabel>Deadline</FormLabel><Popover><PopoverTrigger asChild><FormControl><Button variant={"outline"} className={cn("pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>{field.value ? format(field.value, "PPP") : <span>Pick a date</span>}<CalendarIcon className="ml-auto h-4 w-4 opacity-50" /></Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus /></PopoverContent></Popover><FormMessage /></FormItem>
                         )} />

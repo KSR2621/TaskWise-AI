@@ -1,7 +1,7 @@
 'use server';
 
 /**
- * @fileOverview A flow to break down a large task into smaller, manageable subtasks.
+ * @fileOverview A flow to break down a large task into smaller, manageable subtasks by asking clarifying questions.
  *
  * - breakDownTask - A function that handles the task breakdown process.
  * - BreakDownTaskInput - The input type for the breakDownTask function.
@@ -13,11 +13,13 @@ import {z} from 'genkit';
 
 const BreakDownTaskInputSchema = z.object({
   task: z.string().describe('The large task to break down into smaller subtasks.'),
+  userResponse: z.string().optional().describe('The user\'s response to the clarifying questions.'),
 });
 export type BreakDownTaskInput = z.infer<typeof BreakDownTaskInputSchema>;
 
 const BreakDownTaskOutputSchema = z.object({
-  subtasks: z.array(z.string()).describe('An array of subtasks that make up the larger task.'),
+  questions: z.array(z.string()).optional().describe('Clarifying questions for the user to answer.'),
+  subtasks: z.array(z.string()).optional().describe('An array of subtasks that make up the larger task.'),
 });
 export type BreakDownTaskOutput = z.infer<typeof BreakDownTaskOutputSchema>;
 
@@ -31,15 +33,24 @@ const prompt = ai.definePrompt({
   output: {schema: BreakDownTaskOutputSchema},
   prompt: `You are a task management expert. Your job is to break down large tasks into smaller, more manageable subtasks.
 
-  Task: {{{task}}}
+Task: {{{task}}}
 
-  Consider the following when breaking down the task:
-  - What are the individual steps required to complete the task?
-  - What are the dependencies between the steps?
-  - How can the steps be grouped into logical subtasks?
+{{#if userResponse}}
+You previously asked some questions to understand the task better. Here is the user's response:
+"{{userResponse}}"
 
-  Return the subtasks as a JSON array of strings.
-  `,
+Based on this new information, generate a list of concrete, actionable subtasks.
+If the user's response is vague, ask another clarifying question.
+Otherwise, provide the subtasks and no more questions.
+{{else}}
+To break down this task effectively, I need more information. Ask the user 2-3 clarifying questions to better understand the scope, dependencies, and desired outcome.
+For example:
+- What is the final deliverable or outcome for this task?
+- Are there any deadlines or milestones I should be aware of?
+- Who are the key stakeholders involved?
+Return ONLY the questions in the 'questions' field.
+{{/if}}
+`,
 });
 
 const breakDownTaskFlow = ai.defineFlow(
