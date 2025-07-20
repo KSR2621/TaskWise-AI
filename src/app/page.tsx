@@ -15,6 +15,7 @@ import {
   CalendarClock,
   LoaderCircle,
   Info,
+  ClipboardList,
 } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { z } from "zod";
@@ -27,6 +28,7 @@ import { suggestTasks } from "@/ai/flows/suggest-tasks";
 import { breakDownTask } from "@/ai/flows/break-down-task";
 import { suggestSchedule } from "@/ai/flows/suggest-schedule";
 import { prioritizeTasks } from "@/ai/flows/prioritize-tasks";
+import { generateDaySchedule } from "@/ai/flows/generate-day-schedule";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -63,6 +65,7 @@ export default function TaskWisePage() {
     breakdownTask?: Task | null;
     suggestSchedule?: Task | null;
     editTask?: Task | null;
+    planDay?: boolean;
   }>({});
 
   const { toast } = useToast();
@@ -162,6 +165,10 @@ export default function TaskWisePage() {
               </div>
             </div>
             <div className="flex items-center gap-2">
+               <Button variant="ghost" onClick={() => setDialogState({ planDay: true })}>
+                <ClipboardList className="mr-2 h-4 w-4" />
+                Plan My Day
+              </Button>
               <Button variant="ghost" onClick={() => setDialogState({ suggestTasks: true })} disabled={isSuggestingTasks}>
                 {isSuggestingTasks ? <LoaderCircle className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
                 Suggest Tasks
@@ -219,6 +226,14 @@ export default function TaskWisePage() {
             </div>
           </section>
         </main>
+
+        <PlanDayDialog
+            open={dialogState.planDay || false}
+            onOpenChange={(open) => setDialogState({ planDay: open })}
+            onScheduleGenerated={(newTasks) => {
+                setTasks(prev => [...newTasks, ...prev]);
+            }}
+        />
 
         <SuggestTasksDialog
           open={dialogState.suggestTasks || false}
@@ -372,6 +387,96 @@ const TaskItem = ({ task, index, onToggleComplete, onToggleSubtaskComplete, onDe
 };
 
 // Dialog Components
+
+const planDaySchema = z.object({
+  mainGoal: z.string().min(3, { message: "Please enter a main goal." }),
+  wakeUpTime: z.string().min(1, { message: "Wake up time is required." }),
+  sleepTime: z.string().min(1, { message: "Sleep time is required." }),
+  fixedAppointments: z.string().optional(),
+  waterIntakeLiters: z.coerce.number().min(0).max(10),
+});
+
+const PlanDayDialog = ({ open, onOpenChange, onScheduleGenerated }: { open: boolean, onOpenChange: (open: boolean) => void, onScheduleGenerated: (tasks: Task[]) => void }) => {
+    const [isLoading, setIsLoading] = React.useState(false);
+    const { toast } = useToast();
+
+    const form = useForm<z.infer<typeof planDaySchema>>({
+        resolver: zodResolver(planDaySchema),
+        defaultValues: {
+            mainGoal: "",
+            wakeUpTime: "8:00 AM",
+            sleepTime: "11:00 PM",
+            fixedAppointments: "",
+            waterIntakeLiters: 3,
+        },
+    });
+
+    const onSubmit = async (values: z.infer<typeof planDaySchema>) => {
+        setIsLoading(true);
+        try {
+            const result = await generateDaySchedule(values);
+            const newTasks: Task[] = result.schedule.map(item => ({
+                id: `task-${Date.now()}-${Math.random()}`,
+                title: `${item.time}: ${item.task}`,
+                completed: false,
+                priority: item.priority,
+                subtasks: [],
+            }));
+            onScheduleGenerated(newTasks);
+            toast({ title: "Day Planned!", description: "Your schedule has been added to your tasks." });
+            onClose();
+        } catch (e) {
+            console.error(e);
+            toast({ variant: "destructive", title: "AI Error", description: "Could not generate a schedule." });
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const onClose = () => {
+        onOpenChange(false);
+        form.reset();
+    };
+
+    return (
+        <Dialog open={open} onOpenChange={onClose}>
+            <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                    <DialogTitle>Plan Your Perfect Day</DialogTitle>
+                    <DialogDescription>Answer a few questions and let AI create a schedule for you.</DialogDescription>
+                </DialogHeader>
+                <Form {...form}>
+                    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                        <FormField control={form.control} name="mainGoal" render={({ field }) => (
+                            <FormItem><FormLabel>What's your main goal for today?</FormLabel><FormControl><Input placeholder="e.g., Finish the project proposal" {...field} /></FormControl><FormMessage /></FormItem>
+                        )} />
+                        <div className="grid grid-cols-2 gap-4">
+                            <FormField control={form.control} name="wakeUpTime" render={({ field }) => (
+                                <FormItem><FormLabel>Wake-up time</FormLabel><FormControl><Input placeholder="e.g., 7:00 AM" {...field} /></FormControl><FormMessage /></FormItem>
+                            )} />
+                            <FormField control={form.control} name="sleepTime" render={({ field }) => (
+                                <FormItem><FormLabel>Sleep time</FormLabel><FormControl><Input placeholder="e.g., 11:00 PM" {...field} /></FormControl><FormMessage /></FormItem>
+                            )} />
+                        </div>
+                        <FormField control={form.control} name="fixedAppointments" render={({ field }) => (
+                            <FormItem><FormLabel>Any fixed appointments?</FormLabel><FormControl><Textarea placeholder="e.g., Meeting from 2pm-3pm, Dentist at 4:30pm" {...field} /></FormControl><FormMessage /></FormItem>
+                        )} />
+                         <FormField control={form.control} name="waterIntakeLiters" render={({ field }) => (
+                            <FormItem><FormLabel>Daily Water Intake (Liters)</FormLabel><FormControl><Input type="number" step="0.5" {...field} /></FormControl><FormMessage /></FormItem>
+                        )} />
+                        <DialogFooter>
+                            <Button type="submit" disabled={isLoading} className="w-full">
+                                {isLoading ? <LoaderCircle className="mr-2 h-4 w-4 animate-spin" /> : <ClipboardList className="mr-2 h-4 w-4" />}
+                                Generate My Schedule
+                            </Button>
+                        </DialogFooter>
+                    </form>
+                </Form>
+            </DialogContent>
+        </Dialog>
+    );
+};
+
 
 const suggestTasksSchema = z.object({
   projects: z.string().min(3, "Please describe your projects briefly."),
