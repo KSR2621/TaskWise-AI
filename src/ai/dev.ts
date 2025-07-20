@@ -6,3 +6,4 @@ import '@/ai/flows/suggest-tasks.ts';
 import '@/ai/flows/break-down-task.ts';
 import '@/ai/flows/prioritize-tasks.ts';
 import '@/ai/flows/generate-day-schedule.ts';
+import '@/ai/flows/chat-with-ai.ts';

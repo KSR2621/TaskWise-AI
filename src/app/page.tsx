@@ -18,6 +18,8 @@ import {
   Info,
   ClipboardList,
   MessageSquareQuote,
+  Bot,
+  Send,
 } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { z } from "zod";
@@ -31,6 +33,7 @@ import { breakDownTask } from "@/ai/flows/break-down-task";
 import { suggestSchedule } from "@/ai/flows/suggest-schedule";
 import { prioritizeTasks } from "@/ai/flows/prioritize-tasks";
 import { generateDaySchedule } from "@/ai/flows/generate-day-schedule";
+import { chatWithAI, ChatWithAIOutput } from "@/ai/flows/chat-with-ai";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -63,6 +66,7 @@ export default function TaskWisePage() {
     suggestSchedule?: Task | null;
     editTask?: Task | null;
     planDay?: boolean;
+    chat?: boolean;
   }>({});
 
   const { toast } = useToast();
@@ -194,6 +198,20 @@ export default function TaskWisePage() {
             <div className="flex items-center gap-2">
                <Tooltip>
                 <TooltipTrigger asChild>
+                  <Button variant="ghost" size="icon" className="sm:hidden" onClick={() => setDialogState({ chat: true })}>
+                    <Bot className="h-4 w-4" />
+                    <span className="sr-only">Chat with AI</span>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Chat with AI</TooltipContent>
+              </Tooltip>
+              <Button variant="ghost" className="hidden sm:inline-flex" onClick={() => setDialogState({ chat: true })}>
+                <Bot className="mr-2 h-4 w-4" />
+                Chat with AI
+              </Button>
+
+               <Tooltip>
+                <TooltipTrigger asChild>
                   <Button variant="ghost" size="icon" className="sm:hidden" onClick={() => setDialogState({ planDay: true })}>
                     <ClipboardList className="h-4 w-4" />
                     <span className="sr-only">Plan My Day</span>
@@ -275,6 +293,14 @@ export default function TaskWisePage() {
             </Tabs>
           </section>
         </main>
+
+        <ChatDialog
+          open={dialogState.chat || false}
+          onOpenChange={(open) => setDialogState({ chat: open })}
+          onAddTasks={(newTasks) => {
+            setTasks(prev => [...newTasks, ...prev]);
+          }}
+        />
 
         <PlanDayDialog
             open={dialogState.planDay || false}
@@ -468,6 +494,127 @@ const TaskItem = ({ task, index, onToggleComplete, onToggleSubtaskComplete, onDe
 
 // Dialog Components
 
+type ConversationMessage = {
+  role: 'user' | 'model';
+  text: string;
+};
+
+const ChatDialog = ({ open, onOpenChange, onAddTasks }: { open: boolean, onOpenChange: (open: boolean) => void, onAddTasks: (tasks: Task[]) => void }) => {
+    const [conversation, setConversation] = React.useState<ConversationMessage[]>([]);
+    const [userInput, setUserInput] = React.useState('');
+    const [isLoading, setIsLoading] = React.useState(false);
+    const [suggestedTasks, setSuggestedTasks] = React.useState<ChatWithAIOutput['suggestedTasks']>([]);
+    const { toast } = useToast();
+    const chatContainerRef = React.useRef<HTMLDivElement>(null);
+
+    React.useEffect(() => {
+        if (chatContainerRef.current) {
+            chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+        }
+    }, [conversation]);
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!userInput.trim()) return;
+
+        const newUserMessage: ConversationMessage = { role: 'user', text: userInput };
+        const newConversation = [...conversation, newUserMessage];
+        setConversation(newConversation);
+        setUserInput('');
+        setIsLoading(true);
+        setSuggestedTasks([]);
+
+        try {
+            const result = await chatWithAI({
+                conversationHistory: newConversation,
+                userInput: userInput,
+            });
+            const newModelMessage: ConversationMessage = { role: 'model', text: result.response };
+            setConversation(prev => [...prev, newModelMessage]);
+            if (result.suggestedTasks && result.suggestedTasks.length > 0) {
+                setSuggestedTasks(result.suggestedTasks);
+            }
+        } catch (error) {
+            console.error(error);
+            toast({ variant: "destructive", title: "AI Error", description: "Failed to get a response from the AI." });
+            const errorMessage: ConversationMessage = { role: 'model', text: "Sorry, I'm having trouble connecting right now." };
+            setConversation(prev => [...prev, errorMessage]);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleAddSuggestedTasks = () => {
+        if (!suggestedTasks) return;
+        const newTasks: Task[] = suggestedTasks.map(item => ({
+            id: `task-${Date.now()}-${Math.random()}`,
+            title: item.task,
+            completed: false,
+            priority: item.priority,
+            subtasks: [],
+            category: item.category,
+        }));
+        onAddTasks(newTasks);
+        toast({ title: "Tasks Added!", description: "The suggested tasks have been added to your list." });
+        setSuggestedTasks([]);
+    };
+
+    const onClose = () => {
+        setConversation([]);
+        setSuggestedTasks([]);
+        setUserInput('');
+        onOpenChange(false);
+    }
+
+    return (
+        <Dialog open={open} onOpenChange={onClose}>
+            <DialogContent className="sm:max-w-lg flex flex-col h-[70vh]">
+                <DialogHeader>
+                    <DialogTitle>Chat with your AI Assistant</DialogTitle>
+                    <DialogDescription>Describe your day, and I'll help you create tasks.</DialogDescription>
+                </DialogHeader>
+                <div ref={chatContainerRef} className="flex-grow space-y-4 overflow-y-auto p-4 border rounded-md bg-muted/20">
+                    {conversation.map((msg, index) => (
+                        <div key={index} className={cn("flex items-start gap-3", msg.role === 'user' ? 'justify-end' : '')}>
+                            {msg.role === 'model' && <Avatar className="h-8 w-8 bg-primary text-primary-foreground"><Bot className="h-5 w-5" /></Avatar>}
+                            <div className={cn("rounded-lg px-4 py-2 max-w-sm", msg.role === 'model' ? "bg-secondary" : "bg-primary text-primary-foreground")}>
+                                <p className="text-sm">{msg.text}</p>
+                            </div>
+                        </div>
+                    ))}
+                    {isLoading && <div className="flex justify-center"><LoaderCircle className="h-6 w-6 animate-spin" /></div>}
+                </div>
+                {suggestedTasks && suggestedTasks.length > 0 && (
+                    <Card className="bg-background">
+                        <CardHeader className="pb-2">
+                            <CardTitle className="text-sm">Suggested Tasks</CardTitle>
+                        </CardHeader>
+                        <CardContent className="text-sm space-y-1 max-h-24 overflow-y-auto">
+                            {suggestedTasks.map((t, i) => <p key={i}>- {t.task} ({t.priority})</p>)}
+                        </CardContent>
+                        <CardFooter>
+                            <Button size="sm" onClick={handleAddSuggestedTasks}>Add to List</Button>
+                        </CardFooter>
+                    </Card>
+                )}
+                <form onSubmit={handleSubmit} className="flex items-center gap-2">
+                    <Input
+                        value={userInput}
+                        onChange={(e) => setUserInput(e.target.value)}
+                        placeholder="e.g., I need to prepare for the meeting tomorrow."
+                        disabled={isLoading}
+                    />
+                    <Button type="submit" size="icon" disabled={isLoading}>
+                        <Send className="h-4 w-4" />
+                    </Button>
+                </form>
+            </DialogContent>
+        </Dialog>
+    );
+};
+
+
+
 const planDaySchema = z.object({
   mainGoal: z.string().min(3, { message: "Please enter a main goal." }),
   wakeUpTime: z.string().min(1, { message: "Wake up time is required." }),
@@ -561,7 +708,7 @@ const PlanDayDialog = ({ open, onOpenChange, onScheduleGenerated }: { open: bool
 
 const suggestTasksSchema = z.object({
   projects: z.string().min(3, "Please describe your projects briefly."),
-  habits: z.string().min(3, "Please describe your habits briefly."),
+  pastHabits: z.string().min(3, "Please describe your habits briefly."),
 });
 
 const SuggestTasksDialog = ({ open, onOpenChange, onAddTasks, setLoading }: { open: boolean, onOpenChange: (open: boolean) => void, onAddTasks: (tasks: string[]) => void, setLoading: (loading: boolean) => void }) => {
@@ -571,7 +718,7 @@ const SuggestTasksDialog = ({ open, onOpenChange, onAddTasks, setLoading }: { op
   
   const form = useForm<z.infer<typeof suggestTasksSchema>>({
     resolver: zodResolver(suggestTasksSchema),
-    defaultValues: { projects: "", habits: "" },
+    defaultValues: { projects: "", pastHabits: "" },
   });
 
   const onSubmit = async (values: z.infer<typeof suggestTasksSchema>) => {
@@ -618,7 +765,7 @@ const SuggestTasksDialog = ({ open, onOpenChange, onAddTasks, setLoading }: { op
                   <FormMessage />
                 </FormItem>
               )} />
-              <FormField control={form.control} name="habits" render={({ field }) => (
+              <FormField control={form.control} name="pastHabits" render={({ field }) => (
                 <FormItem>
                   <FormLabel>Past Habits or Goals</FormLabel>
                   <FormControl>
@@ -979,4 +1126,3 @@ const EditTaskDialog = ({ task, onOpenChange, onUpdateTask }: { task: Task | nul
         </Dialog>
     );
 };
-
