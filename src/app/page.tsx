@@ -176,7 +176,7 @@ export default function TaskWisePage() {
                 <h1 className="text-4xl font-black tracking-tighter text-foreground">
                   TaskWise AI
                 </h1>
-                <p className="text-muted-foreground">Your intelligent to-do list</p>
+                <p className="text-muted-foreground">Your intelligent to-do list by KSR</p>
               </div>
             </div>
             <div className="flex items-center gap-2">
