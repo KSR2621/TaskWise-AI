@@ -49,16 +49,7 @@ import Logo from "@/components/logo";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 
-const initialTasks: Task[] = [
-  { id: 'task-1', title: 'Plan company offsite event', completed: false, priority: 'High', deadline: '2024-08-15', subtasks: [], userCriteria: 'Must be budget-friendly', category: 'This Week' },
-  { id: 'task-2', title: 'Develop Q3 marketing strategy', completed: false, priority: 'High', deadline: '2024-07-30', subtasks: [
-    { id: 'sub-1', title: 'Research competitors', completed: true },
-    { id: 'sub-2', title: 'Define target audience', completed: false },
-  ], category: 'This Week'},
-  { id: 'task-3', title: 'Finalize Q2 performance reviews', completed: false, priority: 'Medium', deadline: '2024-07-22', subtasks: [], category: 'Today' },
-  { id: 'task-4', title: 'Book flight for leadership summit', completed: true, priority: 'High', deadline: '2024-07-25', subtasks: [], category: 'Today' },
-  { id: 'task-5', title: 'Outline 2025 product roadmap', completed: false, priority: 'Low', deadline: '2024-09-30', subtasks: [], category: 'Long Term' },
-];
+const initialTasks: Task[] = [];
 
 export default function TaskWisePage() {
   const [tasks, setTasks] = React.useState<Task[]>(initialTasks);
