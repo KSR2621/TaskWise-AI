@@ -66,6 +66,26 @@ export default function TaskWisePage() {
   }>({});
 
   const { toast } = useToast();
+  
+  React.useEffect(() => {
+    try {
+        const savedTasks = localStorage.getItem("tasks");
+        if (savedTasks) {
+            setTasks(JSON.parse(savedTasks));
+        }
+    } catch (error) {
+        console.error("Failed to load tasks from localStorage", error);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    try {
+        localStorage.setItem("tasks", JSON.stringify(tasks));
+    } catch (error) {
+        console.error("Failed to save tasks to localStorage", error);
+    }
+  }, [tasks]);
+
 
   const handleAddTask = (e: React.FormEvent) => {
     e.preventDefault();
@@ -959,3 +979,4 @@ const EditTaskDialog = ({ task, onOpenChange, onUpdateTask }: { task: Task | nul
         </Dialog>
     );
 };
+
