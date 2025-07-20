@@ -169,26 +169,55 @@ export default function TaskWisePage() {
     <TooltipProvider>
       <div className="min-h-screen bg-background text-foreground font-body">
         <main className="container mx-auto max-w-4xl p-4 md:p-8">
-          <header className="flex items-center justify-between mb-12">
-            <div className="flex items-center gap-4">
-              <Logo className="h-12 w-12 text-primary" />
+          <header className="flex flex-col md:flex-row items-center justify-between mb-8 md:mb-12">
+            <div className="flex items-center gap-3 md:gap-4 mb-4 md:mb-0">
+              <Logo className="h-10 w-10 md:h-12 md:w-12 text-primary" />
               <div>
-                <h1 className="text-4xl font-black tracking-tighter text-foreground">
+                <h1 className="text-3xl md:text-4xl font-black tracking-tighter text-foreground">
                   TaskWise AI
                 </h1>
-                <p className="text-muted-foreground">Your intelligent to-do list by KSR</p>
+                <p className="text-sm md:text-base text-muted-foreground">Your intelligent to-do list by KSR</p>
               </div>
             </div>
             <div className="flex items-center gap-2">
-               <Button variant="ghost" onClick={() => setDialogState({ planDay: true })}>
+               <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="icon" className="md:hidden" onClick={() => setDialogState({ planDay: true })}>
+                    <ClipboardList className="h-4 w-4" />
+                    <span className="sr-only">Plan My Day</span>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Plan My Day</TooltipContent>
+              </Tooltip>
+              <Button variant="ghost" className="hidden md:inline-flex" onClick={() => setDialogState({ planDay: true })}>
                 <ClipboardList className="mr-2 h-4 w-4" />
                 Plan My Day
               </Button>
-              <Button variant="ghost" onClick={() => setDialogState({ suggestTasks: true })} disabled={isSuggestingTasks}>
+
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="icon" className="md:hidden" onClick={() => setDialogState({ suggestTasks: true })} disabled={isSuggestingTasks}>
+                    {isSuggestingTasks ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                    <span className="sr-only">Suggest Tasks</span>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Suggest Tasks</TooltipContent>
+              </Tooltip>
+              <Button variant="ghost" className="hidden md:inline-flex" onClick={() => setDialogState({ suggestTasks: true })} disabled={isSuggestingTasks}>
                 {isSuggestingTasks ? <LoaderCircle className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
                 Suggest Tasks
               </Button>
-              <Button variant="ghost" onClick={handlePrioritize} disabled={isPrioritizing}>
+
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="icon" className="md:hidden" onClick={handlePrioritize} disabled={isPrioritizing}>
+                    {isPrioritizing ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <ListOrdered className="h-4 w-4" />}
+                    <span className="sr-only">Prioritize</span>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Prioritize</TooltipContent>
+              </Tooltip>
+              <Button variant="ghost" className="hidden md:inline-flex" onClick={handlePrioritize} disabled={isPrioritizing}>
                 {isPrioritizing ? <LoaderCircle className="mr-2 h-4 w-4 animate-spin" /> : <ListOrdered className="mr-2 h-4 w-4" />}
                 Prioritize
               </Button>
@@ -202,10 +231,10 @@ export default function TaskWisePage() {
                 placeholder="What needs to be done?"
                 value={newTaskTitle}
                 onChange={e => setNewTaskTitle(e.target.value)}
-                className="w-full pl-4 pr-20 py-6 text-lg border-2 border-primary/20 focus:border-primary focus:glow-shadow"
+                className="w-full pl-4 pr-28 md:pr-32 py-6 text-base md:text-lg border-2 border-primary/20 focus:border-primary focus:glow-shadow"
               />
-              <Button type="submit" size="lg" className="absolute right-2 top-1/2 -translate-y-1/2">
-                <Plus className="h-5 w-5 mr-2" /> Add Task
+              <Button type="submit" size="lg" className="absolute right-2 top-1/2 -translate-y-1/2 text-sm md:text-base px-3 md:px-4">
+                <Plus className="h-5 w-5 md:mr-2" /> <span className="hidden md:inline">Add Task</span>
               </Button>
             </form>
           </section>
@@ -282,6 +311,16 @@ export default function TaskWisePage() {
   );
   
   function TaskList({ tasks }: { tasks: Task[] }) {
+    if (tasks.length === 0) {
+      return (
+         <div className="text-center py-16 border-2 border-dashed border-border/50 rounded-lg bg-card/50">
+            <CheckCircle className="mx-auto h-12 w-12 text-primary" />
+            <h3 className="mt-4 text-xl font-semibold text-foreground">You're all caught up!</h3>
+            <p className="mt-2 text-base text-muted-foreground">Looks like there's nothing on your plate for {activeTab}.</p>
+        </div>
+      );
+    }
+    
     return (
       <div className="space-y-3">
         {tasks.map((task, index) => (
@@ -297,13 +336,6 @@ export default function TaskWisePage() {
             onSuggestSchedule={(taskToSchedule) => setDialogState({ suggestSchedule: taskToSchedule })}
           />
         ))}
-        {tasks.length === 0 && (
-           <div className="text-center py-16 border-2 border-dashed border-border/50 rounded-lg bg-card/50">
-              <CheckCircle className="mx-auto h-12 w-12 text-primary" />
-              <h3 className="mt-4 text-xl font-semibold text-foreground">You're all caught up!</h3>
-              <p className="mt-2 text-base text-muted-foreground">Looks like there's nothing on your plate for {activeTab}.</p>
-          </div>
-        )}
       </div>
     );
   }
@@ -350,7 +382,7 @@ const TaskItem = ({ task, index, onToggleComplete, onToggleSubtaskComplete, onDe
                         <label
                             htmlFor={`task-${task.id}`}
                             className={cn(
-                                "font-semibold text-lg transition-colors cursor-pointer",
+                                "font-semibold text-base md:text-lg transition-colors cursor-pointer",
                                 task.completed ? "line-through text-muted-foreground" : "text-foreground"
                             )}
                         >
@@ -935,3 +967,5 @@ const EditTaskDialog = ({ task, onOpenChange, onUpdateTask }: { task: Task | nul
         </Dialog>
     );
 };
+
+    
